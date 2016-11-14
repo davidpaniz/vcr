@@ -13,7 +13,7 @@ module VCR
       extend self
 
       def log(message, indentation_level = 0)
-        VCR.configuration.logger.log(message, log_prefix, indentation_level)
+        VCR.configuration.logger.log(message, '[Webmock - paniz]', indentation_level)
       end
 
       @global_hook_disabled_requests = {}
@@ -84,7 +84,7 @@ module VCR
         end
 
         def typed_request_for(webmock_request, remove = false)
-          log "typed_request_for - webmock_request: #{webmock_request} || remove #{remove}"
+          log "typed_request_for - webmock_request: #{webmock_request.class} || remove #{remove}"
           x = webmock_request.instance_variables.find { |v| v.to_sym == :@__typed_vcr_request }
           log "webmock_request(@__typed_vcr_request): '#{x}'"
           if x
