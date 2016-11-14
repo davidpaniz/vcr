@@ -12,6 +12,10 @@ module VCR
     module WebMock
       extend self
 
+      def log(message, indentation_level = 0)
+        VCR.configuration.logger.log(message, log_prefix, indentation_level)
+      end
+
       @global_hook_disabled_requests = {}
 
       def with_global_hook_disabled(request)
@@ -26,11 +30,13 @@ module VCR
 
       def global_hook_disabled?(request)
         requests = @global_hook_disabled_requests[Thread.current.object_id]
+        log "global_hook_disabled? - Requests: #{requests}"
         requests && requests.include?(request)
       end
 
       def global_hook_disabled_requests
         requests = @global_hook_disabled_requests[Thread.current.object_id]
+        log "global_hook_disabled_requests? - Requests: #{requests}"
         return requests if requests
 
         ObjectSpace.define_finalizer(Thread.current, lambda {
@@ -78,10 +84,16 @@ module VCR
         end
 
         def typed_request_for(webmock_request, remove = false)
-          if webmock_request.instance_variables.find { |v| v.to_sym == :@__typed_vcr_request }
+          log "typed_request_for - webmock_request: #{webmock_request} || remove #{remove}"
+          x = webmock_request.instance_variables.find { |v| v.to_sym == :@__typed_vcr_request }
+          log "webmock_request(@__typed_vcr_request): '#{x}'"
+          if x
             meth = remove ? :remove_instance_variable : :instance_variable_get
-            return webmock_request.send(meth, :@__typed_vcr_request)
+            y = webmock_request.send(meth, :@__typed_vcr_request)
+            log "type inside if '#{y}'"
+            return y
           end
+
 
           warn <<-EOS.gsub(/^\s+\|/, '')
             |WARNING: There appears to be a bug in WebMock's after_request hook
@@ -89,7 +101,9 @@ module VCR
             |         may not work properly.
           EOS
 
-          Request::Typed.new(vcr_request_for(webmock_request), :unknown)
+          z = Request::Typed.new(vcr_request_for(webmock_request), :unknown)
+          log "type outside if '#{z}'"
+          z
         end
       end
 

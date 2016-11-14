@@ -41,8 +41,11 @@ module VCR
     end
 
     def invoke_before_request_hook
+      log "invoke_before_request_hook"
+      log "Disabled?: #{disabled?} || has_hooks_for? #{VCR.configuration.has_hooks_for?(:before_http_request)}"
       return if disabled? || !VCR.configuration.has_hooks_for?(:before_http_request)
       typed_request = Request::Typed.new(vcr_request, request_type)
+      log "typed_request: #{typed_request}"
       VCR.configuration.invoke_hook(:before_http_request, typed_request)
     end
 
