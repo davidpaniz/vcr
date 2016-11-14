@@ -19,6 +19,7 @@ module VCR
       @global_hook_disabled_requests = {}
 
       def with_global_hook_disabled(request)
+        log 'with_global_hook_disabled'
         global_hook_disabled_requests << request
 
         begin
@@ -49,6 +50,7 @@ module VCR
       # @private
       module Helpers
         def vcr_request_for(webmock_request)
+          log 'vcr_request_for'
           VCR::Request.new \
             webmock_request.method,
             webmock_request.uri.to_s,
@@ -58,6 +60,7 @@ module VCR
 
         # @private
         def vcr_response_for(webmock_response)
+          log 'vcr_response_for'
           VCR::Response.new \
             VCR::ResponseStatus.new(*webmock_response.status),
             webmock_response.headers,
@@ -68,6 +71,7 @@ module VCR
         if defined?(::Excon)
           # @private
           def request_headers_for(webmock_request)
+            log 'request_headers_for(Excon)'
             return nil unless webmock_request.headers
 
             # WebMock hooks deeply into a Excon at a place where it manually adds a "Host"
@@ -79,6 +83,7 @@ module VCR
         else
           # @private
           def request_headers_for(webmock_request)
+            log 'request_headers_for(No excon)'
             webmock_request.headers
           end
         end
@@ -112,12 +117,14 @@ module VCR
 
         attr_reader :request
         def initialize(request)
+          log 'RequestHandler#initialize'
           @request = request
         end
 
       private
 
         def externally_stubbed?
+          log 'externally_stubbed?'
           # prevent infinite recursion...
           VCR::LibraryHooks::WebMock.with_global_hook_disabled(request) do
             ::WebMock.registered_request?(request)
@@ -125,25 +132,30 @@ module VCR
         end
 
         def set_typed_request_for_after_hook(*args)
+          log 'set_typed_request_for_after_hook'
           super
           request.instance_variable_set(:@__typed_vcr_request, @after_hook_typed_request)
         end
 
         def vcr_request
+          log 'vcr_request'
           @vcr_request ||= vcr_request_for(request)
         end
 
         def on_externally_stubbed_request
+          log 'on_externally_stubbed_request'
           # nil allows WebMock to handle the request
           nil
         end
 
         def on_unhandled_request
+          log 'on_unhandled_request'
           invoke_after_request_hook(nil)
           super
         end
 
         def on_stubbed_by_vcr_request
+          log 'on_stubbed_by_vcr_request'
           {
             :body    => stubbed_response.body.dup, # Excon mutates the body, so we must dup it :-(
             :status  => [stubbed_response.status.code.to_i, stubbed_response.status.message],
@@ -159,6 +171,8 @@ module VCR
       end
 
       ::WebMock.after_request(:real_requests_only => true) do |request, response|
+        log 'WebMock.after_request(:real_requests_only => true)'
+        log "VCR.library_hooks.disabled?(:webmock): '#{VCR.library_hooks.disabled?(:webmock)}'", 1
         unless VCR.library_hooks.disabled?(:webmock)
           http_interaction = VCR::HTTPInteraction.new \
             typed_request_for(request), vcr_response_for(response)
@@ -168,6 +182,8 @@ module VCR
       end
 
       ::WebMock.after_request do |request, response|
+        log 'WebMock.after_request'
+        log "VCR.library_hooks.disabled?(:webmock): '#{VCR.library_hooks.disabled?(:webmock)}'", 1
         unless VCR.library_hooks.disabled?(:webmock)
           VCR.configuration.invoke_hook \
             :after_http_request,

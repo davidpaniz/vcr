@@ -42,11 +42,18 @@ module VCR
     autoload :Rack,              'vcr/middleware/rack'
   end
 
+  def log(message, indentation_level = 0)
+    VCR.configuration.logger.log(message, '[VCR - paniz]', indentation_level)
+  end
+
   # The currently active cassette.
   #
   # @return [nil, VCR::Cassette] The current cassette or nil if there is
   #  no current cassette.
   def current_cassette
+    log "current_cassette"
+    log "All cassettes: [#{cassettes}]", 1
+    log "Current: #{cassettes.last}", 1
     cassettes.last
   end
 
@@ -125,8 +132,12 @@ module VCR
   #  unless your code-under-test cannot be run as a block.
   #
   def insert_cassette(name, options = {})
+    log "insert_cassette:"
+    log "turned_on? #{turned_on?}", 1
+    log "!ignore_cassettes? #{!ignore_cassettes?}", 1
     if turned_on?
       if cassettes.any? { |c| c.name == name }
+        log "There is already a cassette with the same name (#{name}).  You cannot nest multiple cassettes with the same name.", 2
         raise ArgumentError.new("There is already a cassette with the same name (#{name}).  You cannot nest multiple cassettes with the same name.")
       end
 
@@ -136,6 +147,7 @@ module VCR
     elsif !ignore_cassettes?
       message = "VCR is turned off.  You must turn it on before you can insert a cassette.  " +
                 "Or you can use the `:ignore_cassettes => true` option to completely ignore cassette insertions."
+      log message, 2
       raise TurnedOffError.new(message)
     end
   end
@@ -152,7 +164,9 @@ module VCR
   #  an error, but your test framework has already handled it.
   # @return [VCR::Cassette, nil] the ejected cassette if there was one
   def eject_cassette(options = {})
+    log "eject_cassette"
     cassette = cassettes.last
+    log "cassette: #{cassette}", 1
     cassette.eject(options) if cassette
     cassette
   ensure
@@ -177,14 +191,18 @@ module VCR
   # @see #insert_cassette
   # @see #eject_cassette
   def use_cassette(name, options = {}, &block)
+    log 'use_cassette'
     unless block
-      raise ArgumentError, "`VCR.use_cassette` requires a block. " +
-                           "If you cannot wrap your code in a block, use " +
-                           "`VCR.insert_cassette` / `VCR.eject_cassette` instead."
+      message = "`VCR.use_cassette` requires a block. " +
+                "If you cannot wrap your code in a block, use " +
+                "`VCR.insert_cassette` / `VCR.eject_cassette` instead."
+      log message
+      raise ArgumentError, message
     end
 
     cassette = insert_cassette(name, options)
 
+    log "Cassette: #{cassette}", 1
     begin
       call_block(block, cassette)
     ensure

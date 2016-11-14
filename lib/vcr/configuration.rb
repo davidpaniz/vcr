@@ -500,7 +500,8 @@ module VCR
 
     def load_library_hook(hook)
       file = "vcr/library_hooks/#{hook}"
-      require file
+      require_lib_result = require file
+      log "required hook(#{hook}): #{require_lib_result}"
     rescue LoadError => e
       raise e unless e.message.include?(file) # in case FakeWeb/WebMock/etc itself is not available
       raise ArgumentError.new("#{hook.inspect} is not a supported VCR HTTP library hook.")
